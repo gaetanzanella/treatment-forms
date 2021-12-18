@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>UIKit rendering - Tracking a layout phase | Gaétan Zanella</title>
+<meta name="generator" content="Jekyll v3.9.0" />
+<meta property="og:title" content="UIKit rendering - Tracking a layout phase" />
+<meta name="author" content="Gaétan Zanella" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="On iOS, the layout of a view hierarchy is expressed dynamically using the Auto Layout constraint system. Thus a view hierarchy can adapt itself to all the possible device screens sold by Apple. Auto Layout takes care to translate all the constraints into equations where the positions and the sizes of the views are the variables. As a consequence the rendering of a view hierarchy requires a calculation before each screen refresh." />
+<meta property="og:description" content="On iOS, the layout of a view hierarchy is expressed dynamically using the Auto Layout constraint system. Thus a view hierarchy can adapt itself to all the possible device screens sold by Apple. Auto Layout takes care to translate all the constraints into equations where the positions and the sizes of the views are the variables. As a consequence the rendering of a view hierarchy requires a calculation before each screen refresh." />
+<link rel="canonical" href="http://localhost:4000/2021-01-04/uikit-rendering-part-1" />
+<meta property="og:url" content="http://localhost:4000/2021-01-04/uikit-rendering-part-1" />
+<meta property="og:site_name" content="Gaétan Zanella" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-01-04T00:00:00+01:00" />
+<script type="application/ld+json">
+{"headline":"UIKit rendering - Tracking a layout phase","url":"http://localhost:4000/2021-01-04/uikit-rendering-part-1","datePublished":"2021-01-04T00:00:00+01:00","dateModified":"2021-01-04T00:00:00+01:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2021-01-04/uikit-rendering-part-1"},"author":{"@type":"Person","name":"Gaétan Zanella"},"description":"On iOS, the layout of a view hierarchy is expressed dynamically using the Auto Layout constraint system. Thus a view hierarchy can adapt itself to all the possible device screens sold by Apple. Auto Layout takes care to translate all the constraints into equations where the positions and the sizes of the views are the variables. As a consequence the rendering of a view hierarchy requires a calculation before each screen refresh.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <!-- Favicon -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+  <link rel="manifest" href="/gaetanzanella.webmanifest">
+  <link rel="mask-icon" href="/favicons/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Gaétan Zanella" />
+
+  <!-- Google Analytics-->
+  
+</head>
+
+
+  <body>
+
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <h2 class="nav-title">Gaétan Zanella</h2>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/apps">Apps</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/archives">Archives</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+      
+        <a href="https://twitter.com/gaetanzanella">Gaétan Zanella</a>
+      
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-01-04 00:00:00 +0100">January 04, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">UIKit rendering - Tracking a layout phase</h1>
+  <div class="post-line"></div>
+
+  <p>On iOS, the layout of a view hierarchy is expressed dynamically using the Auto Layout constraint system. Thus a view hierarchy can adapt itself to all the possible device screens sold by Apple. Auto Layout takes care to translate all the constraints into equations where the positions and the sizes of the views are the variables. As a consequence the rendering of a view hierarchy requires a calculation before each screen refresh.</p>
+
+<p>Let’s find out when the equations solving takes place.</p>
+
+<h2 id="the-layout-phase">The layout phase</h2>
+
+<p>In the life cycle of an application, Apple calls these equations solving moments “layout passes” without ever formally describing them. They were mentioned during a <a href="https://developer.apple.com/videos/play/wwdc2018/220/">WWDC 2018 talk</a> which specified the order and objectives of the different calculations.</p>
+
+<p>To avoid repetitive and useless calculations, the layout phases always appear after the execution of our code. Whether it is following a touch, a network call or the appearance of a view controller, the modification of a constraint affects the position or the size of its associated view only later.</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="n">myView</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">myView</span><span class="o">.</span><span class="n">translatesAutoresizingMaskIntoConstraints</span> <span class="o">=</span> <span class="kc">false</span>
+<span class="n">myView</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span> <span class="o">==</span> <span class="mi">30</span> <span class="c1">// true</span>
+<span class="n">myView</span><span class="o">.</span><span class="n">heightAnchor</span><span class="o">.</span><span class="nf">constraint</span><span class="p">(</span><span class="nv">equalToConstant</span><span class="p">:</span> <span class="mi">50</span><span class="p">)</span><span class="o">.</span><span class="n">isActive</span> <span class="o">=</span> <span class="kc">true</span>
+<span class="n">myView</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span> <span class="o">==</span> <span class="mi">30</span> <span class="c1">// true, changing the constraint has not changed the view height</span></code></pre></figure>
+
+<p>Therefore we need to have a better understanding of the iOS application code execution path to find out the timing of the layout computation. How does Auto Layout manage to insert the layout computation at the right time and in such an efficient way?</p>
+
+<p>Let’s start by tracking a layout phase!</p>
+
+<h2 id="tracking-a-layout-phase">Tracking a layout phase</h2>
+
+<h3 id="the-layoutsubviews-method">The layoutSubviews method</h3>
+
+<p>Apple discourages us to call the method <code class="language-plaintext highlighter-rouge">layoutSubviews</code> directly. The UIKit library calls it for us during a layout phase.</p>
+
+<p>Its role is to give to each view its right size and position. It is in this method that the equations defined by our constraints are solved.</p>
+
+<p>During a layout phase, UIKit calls successively (not recursively), and from top to bottom, <code class="language-plaintext highlighter-rouge">layoutSubviews</code> on each of the views that compose the current view tree. At the end of the chain execution, each view has its final position and size.</p>
+
+<p>Subclassing <code class="language-plaintext highlighter-rouge">layoutSubviews</code> allows us to take part of the view layout calculations and modifing the default implementation. This is also the right time to modify the elements that depend on the size of the current view.</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="k">override</span> <span class="kd">func</span> <span class="nf">layoutSubviews</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">super</span><span class="o">.</span><span class="nf">layoutSubviews</span><span class="p">()</span>
+    <span class="n">layer</span><span class="o">.</span><span class="n">cornerRadius</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="mi">2</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><img src="/assets/uikit-rendering-part-1/corner_radius.jpeg" alt="Corner radius" /></p>
+
+<h3 id="triggering-a-layout-phase">Triggering a layout phase</h3>
+
+<p>UIKit is not the only one to be able to trigger layout calculations. The <code class="language-plaintext highlighter-rouge">layoutIfNeeded</code> method allows to explicitly trigger a layout phase at any time. We thus get the position of the views that we manipulate during the execution of our code:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="n">myView</span><span class="o">.</span><span class="n">heightAnchor</span><span class="o">.</span><span class="nf">constraint</span><span class="p">(</span><span class="nv">equalToConstant</span><span class="p">:</span> <span class="mi">50</span><span class="p">)</span><span class="o">.</span><span class="n">isActive</span> <span class="o">=</span> <span class="kc">true</span>
+<span class="err"> </span><span class="n">myView</span><span class="o">.</span><span class="n">window</span><span class="p">?</span><span class="o">.</span><span class="nf">layoutIfNeeded</span><span class="p">()</span> <span class="c1">// explicit layout phase</span>
+<span class="err"> </span><span class="n">myView</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span> <span class="o">==</span> <span class="mi">30</span> <span class="c1">// false</span></code></pre></figure>
+
+<p>We usually use it to animate changes made by a constraint:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="n">sampleViewHeightConstraint</span><span class="o">.</span><span class="n">constant</span> <span class="o">=</span> <span class="mi">50</span><span class="err"> </span>
+<span class="kt">UIView</span><span class="o">.</span><span class="nf">animate</span><span class="p">(</span><span class="nv">withDuration</span><span class="p">:</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span><span class="err"> </span>
+    <span class="k">self</span><span class="o">.</span><span class="n">view</span><span class="o">.</span><span class="nf">layoutIfNeeded</span><span class="p">()</span><span class="err"> </span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Indeed, as a <em>layout phase</em> triggers successive calls to the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> of the views on screen, the size and position of those views are modified in the animation block. The resulting animation mechanisms are the same as those that would have been triggered if the view had been explicitly modified:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="kt">UIView</span><span class="o">.</span><span class="nf">animate</span><span class="p">(</span><span class="nv">withDuration</span><span class="p">:</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">view</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="mi">50</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><img src="/assets/uikit-rendering-part-1/layout_animation.gif" alt="Layout animation" /></p>
+
+<h3 id="catching-an-implicit-layout-phase">Catching an implicit layout phase</h3>
+
+<p>Our first goal will be to intercept a call to a <code class="language-plaintext highlighter-rouge">layoutSubviews</code> method implicitly triggered by UIKit. Indeed, we don’t need to call <code class="language-plaintext highlighter-rouge">layoutIfNeeded</code> every time we modify a constraint, someone or something is calling it for us. If we manage to do so, all we have to do is to determine when this call is performed to answer our initial question: when does a layout phase take place?</p>
+
+<p>Let’s start with the following sample code and two breakpoints A and B:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="kd">class</span> <span class="kt">SampleView</span><span class="p">:</span> <span class="kt">UIView</span> <span class="p">{</span><span class="err">  </span>
+    <span class="k">override</span> <span class="kd">func</span> <span class="nf">layoutSubviews</span><span class="p">()</span> <span class="p">{</span><span class="err"> </span>
+        <span class="k">super</span><span class="o">.</span><span class="nf">layoutSubviews</span><span class="p">()</span> <span class="c1">// breakpoint B</span>
+<span class="err"> </span>        <span class="n">layer</span><span class="o">.</span><span class="n">cornerRadius</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="mi">2</span>
+<span class="err"> </span>    <span class="p">}</span><span class="err"> </span>
+<span class="p">}</span>
+
+<span class="err">  </span><span class="kd">class</span> <span class="kt">ViewController</span><span class="p">:</span> <span class="kt">UIViewController</span> <span class="p">{</span>
+<span class="err">  </span>    <span class="kd">@IBOutlet</span> <span class="k">var</span> <span class="nv">sampleView</span><span class="p">:</span> <span class="kt">SampleView</span><span class="o">!</span>
+    <span class="err"> </span><span class="kd">@IBOutlet</span> <span class="k">var</span> <span class="nv">sampleViewHeightConstraint</span><span class="p">:</span> <span class="kt">NSLayoutConstraint</span><span class="o">!</span><span class="err">  </span>
+
+    <span class="kd">@IBAction</span> <span class="kd">func</span> <span class="nf">buttonAction</span><span class="p">(</span><span class="n">_</span> <span class="nv">sender</span><span class="p">:</span> <span class="kt">Any</span><span class="p">)</span> <span class="p">{</span>
+<span class="err"> </span>        <span class="n">sampleViewHeightConstraint</span><span class="o">.</span><span class="n">constant</span> <span class="o">=</span> <span class="mi">20</span> <span class="c1">// breakpoint A</span>
+<span class="err"> </span>    <span class="p">}</span><span class="err"> </span>
+<span class="p">}</span></code></pre></figure>
+
+<p>We added a button and a sample view to a <code class="language-plaintext highlighter-rouge">UIViewController</code> view in a xib and we connected them using an <code class="language-plaintext highlighter-rouge">IBAction</code> and an <code class="language-plaintext highlighter-rouge">IBOutlet</code>. We also added a reference to a height constraint attached the sample view.</p>
+
+<p><img src="/assets/uikit-rendering-part-1/implicit_transaction.gif" alt="Implicit transactions" /></p>
+
+<p>When the button is pressed, the height constraint of the sample view is modified. The stack of our first breakpoint A looks like:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout ViewController.buttonAction(sender=Any @ 0x00007ffeee5e00b8, self=0x00007ff0a1f03e00) at ViewController.swift:30
+ #1: Layout @objc ViewController.buttonAction(_:) at ViewController.swift:0
+ #2: UIKit -[UIApplication sendAction:to:from:forEvent:] + 83
+ #3: UIKit -[UIControl sendAction:to:forEvent:] + 67
+ #4: UIKit -[UIControl _sendActionsForEvents:withEvent:] + 450
+ #5: UIKit -[UIControl touchesEnded:withEvent:] + 580
+ #6: UIKit -[UIWindow _sendTouchesForEvent:] + 2729 
+#7: UIKit -[UIWindow sendEvent:] + 4086
+ #8: UIKit -[UIApplication sendEvent:] + 352 
+#9: UIKit __dispatchPreprocessedEventFromEventQueue + 2796
+ #10: UIKit __handleEventQueueInternal + 5949
+ #11: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__ + 17
+ #12: CoreFoundation __CFRunLoopDoSources0 + 271
+ #13: CoreFoundation __CFRunLoopRun + 1263 
+#14: CoreFoundation CFRunLoopRunSpecific + 635
+ #15: GraphicsServices GSEventRunModal + 62
+ #16: UIKit UIApplicationMain + 159 
+#17: Layout main at AppDelegate.swift:12
+ #18: libdyld.dylib start + 1
+ #19: libdyld.dylib start + 1</code></pre></figure>
+
+<p>By continuing the execution, the breakpoint B placed in the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> of the sample view is triggered. By modifying the constraint, UIKit has been forced to trigger a layout phase to satisfy our new layout. We are in the presence of an implicit layout phase!</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout View.layoutSubviews(self=0x00007ff0a1d0ca20) at ViewController.swift:15
+#1: Layout @objc View.layoutSubviews() at ViewController.swift:0
+#2: UIKit -[UIView(CALayerDelegate) layoutSublayersOfLayer:] + 1515
+#3: QuartzCore -[CALayer layoutSublayers] + 177
+#4: QuartzCore CA::Layer::layout_if_needed(CA::Transaction*) + 395
+#5: QuartzCore CA::Context::commit_transaction(CA::Transaction*) + 343
+#6: QuartzCore CA::Transaction::commit() + 568
+#7: QuartzCore CA::Transaction::observer_callback(__CFRunLoopObserver*, unsigned long, void*) + 76
+#8: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 23
+#9: CoreFoundation __CFRunLoopDoObservers + 430
+#10: CoreFoundation __CFRunLoopRun + 1537
+#11: CoreFoundation CFRunLoopRunSpecific + 635
+#12: GraphicsServices GSEventRunModal + 62
+#13: UIKit UIApplicationMain + 159
+#14: Layout main at AppDelegate.swift:12
+#15: libdyld.dylib start + 1
+#16: libdyld.dylib start + 1</code></pre></figure>
+
+<p>Except the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> method, there is no trace of our code. This stack is totally distinct from the one executed when we pressed the button.</p>
+
+<p>The goal is clear: avoiding unnecessary calculations. By running the layout phase on a later and separate stack, UIKit ensures that the layout calculations take place after all modifications that could affect the position of the views have been made.</p>
+
+<p>But where does this stack come from? We could imagine a more complicated scenario: we could modify a constraint in a block in the <code class="language-plaintext highlighter-rouge">dispatchAsync</code> method. How does UIKit manage to always insert the layout phase stack so well?</p>
+
+<h3 id="the-causes-of-a-layout-phase">The causes of a layout phase</h3>
+
+<p>Let’s analyse the elements of the stack.</p>
+
+<p>The top of the stack is familiar. <code class="language-plaintext highlighter-rouge">CALayer.layoutSublayers</code>, for example, is a public method available since iOS 2. It is obviously equivalent to <code class="language-plaintext highlighter-rouge">layoutSubviews</code> : <code class="language-plaintext highlighter-rouge">CALayerDelegate</code> is the link between an <code class="language-plaintext highlighter-rouge">UIView</code> and a <code class="language-plaintext highlighter-rouge">CALayer</code>. We guess that the layout of a view involves the layout of its layer.</p>
+
+<p>The lower part of the stack is the one we are really interested in. It contains the first moments of the layout phase.</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#6: QuartzCore CA::Transaction::commit() + 568
+#7: QuartzCore CA::Transaction::observer_callback(__CFRunLoopObserver*, unsigned long, void*) + 76
+#8: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 23
+#9: CoreFoundation __CFRunLoopDoObservers + 430
+#10: CoreFoundation __CFRunLoopRun + 1537
+#11: CoreFoundation CFRunLoopRunSpecific + 635
+#12: GraphicsServices GSEventRunModal + 62
+#13: UIKit UIApplicationMain + 159
+#14: Layout main at AppDelegate.swift:12
+#15: libdyld.dylib start + 1
+#16: libdyld.dylib start + 1</code></pre></figure>
+
+<p>At the origin of the layout calculation of our view, we find a <code class="language-plaintext highlighter-rouge">commit</code> method of a mysterious <code class="language-plaintext highlighter-rouge">CATransaction</code> class. Below, we see methods related to an enigmatic run loop: <code class="language-plaintext highlighter-rouge">UIApplicationMain</code>, <code class="language-plaintext highlighter-rouge">CFRunLoopRun</code> and <code class="language-plaintext highlighter-rouge">CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_PERFORM_FUNCTION</code>.</p>
+
+<p>The run loop is an essential component of all iOS applications. It is a safe bet that the success of our exploration depends on its understanding and its connection with the <code class="language-plaintext highlighter-rouge">CATransaction</code> class.</p>
+
+<hr />
+
+<p>The steps of our exploration are defined:</p>
+<ul>
+  <li>What is a <code class="language-plaintext highlighter-rouge">CATransaction</code>?</li>
+  <li>What is a run loop?</li>
+  <li>How are they linked?</li>
+</ul>
+
+<p>On the next post, we will tackle the first topic: <a href="/2021-01-04/uikit-rendering-part-2">CATransaction</a>.</p>
+
+</div>
+
+
+
+<div class="pagination">
+  
+    <a href="/2021-01-04/uikit-rendering-part-2" class="left arrow">&#8592; Previous article</a>
+  
+  
+    <a href="/2019-03-25/replicating-uiscrollview" class="right arrow">Next article &#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+    </main>
+
+    <footer>
+  <div class="container">
+    <div class="footer-row">
+      <div class="contact-links">
+        <ul>
+          <li><a>gaetan.zanella@fabernovel.com</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <div class="social-links">
+        <ul class="social-media-list"><li><a rel="me" href="https://github.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

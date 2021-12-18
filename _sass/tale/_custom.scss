@@ -1,0 +1,254 @@
+/**
+ * Figures
+ */
+figcaption {
+  text-align: center;
+  color: $grey-1;
+  font-size: 1rem;
+}
+
+/**
+ * Tables
+ */
+
+$table-text-color:      $default-shade;
+$table-zebra-color:     $grey-3;
+$table-header-bg-color: $grey-2;
+$table-border-color:    $grey-1;
+
+table {
+  margin: 30px auto;
+  text-align: left;
+  color: $table-text-color;
+  border-collapse: collapse;
+  border: 1px solid $table-border-color;
+  tr {
+    &:nth-child(even) {
+      background-color: $table-zebra-color;
+    }
+  }
+  th, td {
+    padding: 10px 15px;
+  }
+  th {
+    background-color: $table-header-bg-color;
+    border: 1px solid $table-border-color;
+  }
+  td {
+    border: 1px solid $table-border-color;
+  }
+}
+
+/**
+ * Clearfix
+ */
+ %clearfix:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/**
+ * Header
+ */
+nav #fabernovel-logo {
+  display: inline-block;
+  margin-right: 1em;
+  vertical-align: middle;
+}
+
+.nav-title {
+  font-weight: 300;
+  vertical-align: middle;
+}
+
+@media (min-width: 600px) {
+  .nav {
+    ul {
+      float: right;
+      vertical-align: middle;
+      display: inline-block;
+      margin-top: 6px;
+
+      bottom: inherit;
+      position: inherit;
+      right: inherit;
+    }
+  }
+}
+
+/**
+ * Font
+ */
+
+.post-info,
+.post-title,
+.tags-header-title,
+.tags-clouds {
+  text-align: left;
+}
+
+.post-line,
+.tags-header-line {
+  margin-left: 0px
+}
+
+h1, h2, h3, h4, h5, h6,
+.post-title,
+.catalogue-title,
+table th,
+strong {
+  font-weight: 600;
+}
+
+.post p,
+.post li,
+.post table,
+.catalogue-item p,
+.tags-post-title {
+  font-size: 1.125rem;
+}
+
+/**
+ * Color
+ */
+
+.nav-container a:hover {
+  color: $blue;
+}
+
+.nav-title {
+  color: $black;
+  letter-spacing: 0.1rem;
+
+  &:hover,
+  &:focus {
+    opacity: 1;
+  }
+}
+
+.pagination .arrow {
+  color: $blue;
+}
+
+/**
+ * Margins
+ */
+
+.tags {
+  padding: 3rem 0;
+}
+
+.tags-clouds {
+  margin: 1rem 0;
+}
+
+/**
+ * Footer
+ */
+
+footer {
+  background: $black;
+  margin-top: 3rem;
+  width: 100%;
+  max-width: none;
+}
+
+footer .copyright {
+  margin-top: 1rem;
+  span {
+    color: $white;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+  }
+}
+
+// Allow the footer to stick to the bottom (with small and big vertical contents)
+// Inspired from https://bit.ly/3cGxXAO
+body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
+}
+
+footer .fabernovel-logo {
+  margin-top: 4px; // align text in logo with links
+}
+
+.contact-links ul,
+.social-links ul {
+  list-style: none;
+  margin-left: 0;
+  padding: 0;
+}
+
+.social-links {
+  li {
+    display: inline-block;
+    vertical-align: text-bottom;
+    margin-right: 20px;
+    &:last-of-type { margin-right: 0 }
+  }
+
+  .svg-icon {
+    width: 16px;
+    height: 16px;
+    fill: $white;
+  }
+}
+
+.contact-links {
+  li {
+    display: inline;
+    margin-right: 20px;
+    &:last-of-type { margin-right: 0 }
+  }
+
+  a {
+    color: $white;
+    &:hover {
+      color: $blue;
+    }
+  }
+}
+
+.footer-row {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.copyright {
+  order: 1;
+  margin-top: 1rem;
+}
+
+.social-links {
+  order: 0;
+}
+
+@media (min-width: 600px) {
+  .footer-row {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  .copyright,
+  .social-links {
+    order: 1;
+  }
+}
+
+/**
+ * Video
+ */
+
+.post iframe {
+  display: block;
+  margin: 0 auto;
+  border-style: none;
+}

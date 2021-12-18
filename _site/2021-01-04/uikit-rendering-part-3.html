@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>UIKit rendering - The run loop | Gaétan Zanella</title>
+<meta name="generator" content="Jekyll v3.9.0" />
+<meta property="og:title" content="UIKit rendering - The run loop" />
+<meta name="author" content="Gaétan Zanella" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="On the previous post, we discovered that the commit of the current implicit transaction is responsible of our initial interrupted layout phase. So we only have one question left: when does it take place?" />
+<meta property="og:description" content="On the previous post, we discovered that the commit of the current implicit transaction is responsible of our initial interrupted layout phase. So we only have one question left: when does it take place?" />
+<link rel="canonical" href="http://localhost:4000/2021-01-04/uikit-rendering-part-3" />
+<meta property="og:url" content="http://localhost:4000/2021-01-04/uikit-rendering-part-3" />
+<meta property="og:site_name" content="Gaétan Zanella" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-01-04T00:00:00+01:00" />
+<script type="application/ld+json">
+{"headline":"UIKit rendering - The run loop","url":"http://localhost:4000/2021-01-04/uikit-rendering-part-3","datePublished":"2021-01-04T00:00:00+01:00","dateModified":"2021-01-04T00:00:00+01:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2021-01-04/uikit-rendering-part-3"},"author":{"@type":"Person","name":"Gaétan Zanella"},"description":"On the previous post, we discovered that the commit of the current implicit transaction is responsible of our initial interrupted layout phase. So we only have one question left: when does it take place?","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <!-- Favicon -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+  <link rel="manifest" href="/gaetanzanella.webmanifest">
+  <link rel="mask-icon" href="/favicons/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Gaétan Zanella" />
+
+  <!-- Google Analytics-->
+  
+</head>
+
+
+  <body>
+
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <h2 class="nav-title">Gaétan Zanella</h2>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/apps">Apps</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/archives">Archives</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+      
+        <a href="https://twitter.com/gaetanzanella">Gaétan Zanella</a>
+      
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-01-04 00:00:00 +0100">January 04, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">UIKit rendering - The run loop</h1>
+  <div class="post-line"></div>
+
+  <p>On the <a href="/2021-01-04/uikit-rendering-part-2">previous post</a>, we discovered that the commit of the current implicit transaction is responsible of our initial interrupted layout phase. So we only have one question left: when does it take place?</p>
+
+<p>The answer is related to an important concept on iOS: the run loop.</p>
+
+<p>I will refer to those three publications in the following article:</p>
+
+<ul>
+  <li><a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html">Run Loop Programming Guide </a></li>
+  <li><a href="https://bou.io/RunRunLoopRun.html">Nicolas Bouilleaud - Run, RunLoop, Run!</a></li>
+  <li><a href="https://stackoverflow.com/questions/15161434/how-do-you-schedule-a-block-to-run-on-the-next-run-loop-iteration/15168471#15168471">Rob on StackOverflow - How do you schedule a block to run on the next run loop iteration? </a></li>
+</ul>
+
+<h3 id="role-of-a-run-loop">Role of a run loop</h3>
+
+<p>The run loop is the mechanism that differentiates a command line program from an interactive application.</p>
+
+<p>A run loop can be vizualised as an infinite loop attached to a thread waiting perpetually for an event. When an event comes, the run loop executes the block code associated to it (if any) on the thread and put the thread back to sleep once the work is done.</p>
+
+<p>On iOS, a run loop can be attached to a <code class="language-plaintext highlighter-rouge">NSThread</code>. Its role is to ensure that its <code class="language-plaintext highlighter-rouge">NSThread</code> is busy when there is work to do and at rest when there is none.</p>
+
+<p>The main thread automatically launches its run loop at the application launch.</p>
+
+<h3 id="implementing-a-run-loop">Implementing a run loop</h3>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="kd">func</span> <span class="nf">postMessage</span><span class="p">(</span><span class="n">runloop</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">runloop</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="nf">pushBack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="n">runloop</span><span class="o">.</span><span class="nf">signal</span><span class="p">()</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">run</span><span class="p">(</span><span class="n">runloop</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">do</span> <span class="p">{</span>
+        <span class="n">runloop</span><span class="o">.</span><span class="nf">wait</span><span class="p">()</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">runloop</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="nf">popFront</span><span class="p">()</span>
+        <span class="nf">dispatch</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="p">}</span> <span class="k">while</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>This pseudo code comes from Nicolas’ article. It highlights the two main actions of a run loop:</p>
+
+<ul>
+  <li>A run loop waits for an event</li>
+  <li>It dispatches it once received</li>
+</ul>
+
+<h3 id="the-run-loop-on-ios">The run loop on iOS</h3>
+
+<p>On iOS, there are of two types of event: timers and sources.</p>
+
+<p>The sources basically correspond to events that an application can handle: a touch, a network call that ends, etc. They are provided by the system.</p>
+
+<p>Rob Mayoff, on his StackOverflow post describes each of the steps performed by a run loop on iOS:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">while (true) { 
+    Call kCFRunLoopBeforeTimers observer callbacks; 
+    Call kCFRunLoopBeforeSources observer callbacks;
+     Perform blocks queued by CFRunLoopPerformBlock; 
+    Call the callback of each version 0 CFRunLoopSource that has been signalled;
+     if (any version 0 source callbacks were called) {
+         Perform blocks newly queued by CFRunLoopPerformBlock; 
+    } 
+    if (I didn't drain the main queue on the last iteration
+         AND the main queue has any blocks waiting) { 
+        while (main queue has blocks) { 
+            perform the next block on the main queue
+         } 
+    } else {
+         Call kCFRunLoopBeforeWaiting observer callbacks;
+         Wait for a CFRunLoopSource to be signalled
+           OR for a timer to fire
+           OR for a block to be added to the main queue;
+         Call kCFRunLoopAfterWaiting observer callbacks;
+         if (the event was a timer) {
+             call CFRunLoopTimer callbacks for timers that should have fired by now
+         } else if (event was a block arriving on the main queue) {
+             while (main queue has blocks) {
+                 perform the next block on the main queue
+             } 
+        } else {
+             look up the version 1 CFRunLoopSource for the event
+             if (I found a version 1 source) {
+                 call the source's callback
+             } 
+        } 
+    }
+     Perform blocks queued by CFRunLoopPerformBlock; 
+}</code></pre></figure>
+
+<p>We find our initial representation of the run loop as a simple infinite loop alongisde all the different operations and checks that it performs.</p>
+
+<p>Thanks to the <code class="language-plaintext highlighter-rouge">Core Foundation</code> developer teams, anytime a block is executed during the cycle of a run loop, it is always called by a function with very distinctive prototypes:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="kd">static</span> <span class="n">void</span> <span class="nf">__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__</span><span class="p">();</span>
+<span class="kd">static</span> <span class="n">void</span> <span class="nf">__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__</span><span class="p">();</span>
+<span class="kd">static</span> <span class="n">void</span> <span class="nf">__CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__</span><span class="p">();</span>
+<span class="kd">static</span> <span class="n">void</span> <span class="nf">__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__</span><span class="p">();</span>
+<span class="kd">static</span> <span class="n">void</span> <span class="nf">__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__</span><span class="p">();</span></code></pre></figure>
+
+<p>It helps debugging. We know where we are in the run loop pass. To get the full detailed list, please refer to Nicolas’ <a href="https://bou.io/RunRunLoopRun.html">article</a>.</p>
+
+<h3 id="the-run-loop-observers">The run loop observers</h3>
+
+<p>In the <a href="https://stackoverflow.com/questions/15161434/how-do-you-schedule-a-block-to-run-on-the-next-run-loop-iteration/15168471#15168471">Rob’s post</a>, you may have noticed those “observers callbacks”. It is indeed possible to observe the run loop, alongside scheduling blocks, to be notified at a desired time.</p>
+
+<p>The observer blocks are always performed by the debugging function:</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="k">static</span> <span class="kt">void</span> <span class="nf">__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__</span><span class="p">();</span></code></pre></figure>
+
+<h2 id="coreanimation-and-run-loop">CoreAnimation and Run Loop</h2>
+
+<p>What is the link between a run loop and a <code class="language-plaintext highlighter-rouge">CATransaction</code>?</p>
+
+<p>As stated by Rob Mayoff, <code class="language-plaintext highlighter-rouge">CoreAnimation</code> is an active observer of the run loop. It waits for the <code class="language-plaintext highlighter-rouge">kCFRunLoopBeforeWaiting</code> event. This latter informs <code class="language-plaintext highlighter-rouge">CoreAnimation</code> of the standby of the run loop. Thus at that moment, <code class="language-plaintext highlighter-rouge">CoreAnimation</code> is sure that all the modifications made during the current run loop pass have been scheduled. It can commit the implicit transaction it started, if any, when a first change was made during the loop to display the changes.</p>
+
+<p>We can verify this statement by looking again at the bottom of our stacks of our breakpoints A and B of the first part of the article.</p>
+
+<p>In A, a touch (a source) woke up the run loop. The touch has been dispatched and triggered the action of our button.</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout ViewController.buttonAction(sender=Any @ 0x00007ffeee5e00b8, self=0x00007ff0a1f03e00) at ViewController.swift:30
+#1: Layout @objc ViewController.buttonAction(_:) at ViewController.swift:0
+...
+#11: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__ + 17 …</code></pre></figure>
+
+<p>At that moment, the modification of the sample view height constraint forced <code class="language-plaintext highlighter-rouge">CoreAnimation</code> to start an implicit transaction.</p>
+
+<p>The loop continued, triggering its various observers along its way. <code class="language-plaintext highlighter-rouge">CoreAnimation</code>, as a skillful observer, committed the implicit transaction it started at the action call just before the run loop finished its loop.</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout View.layoutSubviews(self=0x00007ff0a1d0ca20) at ViewController.swift:15
+#1: Layout @objc View.layoutSubviews() at ViewController.swift:0
+...
+#6: QuartzCore CA::Transaction::commit() + 568
+...
+#8: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 23 ...</code></pre></figure>
+
+<p>We can generalize this behavior by observing the symbolic C++ breakpoint:</p>
+
+<figure class="highlight"><pre><code class="language-swift" data-lang="swift"><span class="kt">CA</span><span class="p">::</span><span class="kt">Context</span><span class="p">::</span><span class="nf">commit_transaction</span><span class="p">(</span><span class="kt">CA</span><span class="p">::</span><span class="kt">Transaction</span><span class="o">*</span><span class="p">)</span></code></pre></figure>
+
+<p><img src="/assets/uikit-rendering-part-3/transaction_commit.gif" alt="Commits" /></p>
+
+<h2 id="summary">Summary</h2>
+
+<p><code class="language-plaintext highlighter-rouge">CoreAnimation</code> renders our app view hierarchy at each run loop pass and not at each view hierarchy modification. To do so, it observes each modification made to each view and begins a <code class="language-plaintext highlighter-rouge">CATransaction</code> if one does not already exist. As an observer of the run loop, <code class="language-plaintext highlighter-rouge">CoreAnimation</code> finally commits this transaction just before the thread is put to sleep. The interest is to gather all the modifications made since the wake-up and not refreshing the screen excessively. Just before making the rendering, <code class="language-plaintext highlighter-rouge">CoreAnimation</code> makes sure each view is laid out by triggering a layout phase.</p>
+
+<h2 id="the-events-of-a-uiviewcontroller">The events of a UIViewController</h2>
+
+<p>An interest in discovering the run loop and its interaction with <code class="language-plaintext highlighter-rouge">CoreAnimation</code> is to have a new point of view on the events that trigger the code of our applications. Apple has taken care to expose us a high level and accessible API: <code class="language-plaintext highlighter-rouge">viewWillAppear</code>, <code class="language-plaintext highlighter-rouge">viewDidAppear</code>, <code class="language-plaintext highlighter-rouge">viewWillLayoutSubviews</code> etc. We can now try to give them a new meaning.</p>
+
+<h3 id="viewwillappear">viewWillAppear</h3>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout PresentedViewController.viewWillAppear(animated=true, self=0x00007fafb6602be0) at ViewController.swift:51
+ #1: Layout @objc PresentedViewController.viewWillAppear(_:) at ViewController.swift:0 
+... 
+#6: UIKit _cleanUpAfterCAFlushAndRunDeferredBlocks + 388 
+#7: UIKit _afterCACommitHandler + 137
+ #8: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 23</code></pre></figure>
+
+<p>When presenting a <code class="language-plaintext highlighter-rouge">UIViewController</code>, <code class="language-plaintext highlighter-rouge">viewWillAppear</code> is the first method called by UIKit. According to this breakpoint, it is called in the same stack as the commit of the implicit transaction and therefore as a layout phase. The <code class="language-plaintext highlighter-rouge">UIViewController</code> view is about to be sent to the render server. However, the layout has not yet taken place: the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> methods of our views have not yet been called.</p>
+
+<h3 id="viewwilllayoutsubviews-and-viewdidlayoutsubviews">viewWillLayoutSubviews and viewDidLayoutSubviews</h3>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout PresentedViewController.viewWillLayoutSubviews(self=0x00007fafb6602be0) at ViewController.swift:59
+ #1: Layout @objc PresentedViewController.viewWillLayoutSubviews() at ViewController.swift:0 
+...
+ #6: QuartzCore CA::Transaction::commit() + 568 
+#7: UIKit _afterCACommitHandler + 272
+ #8: CoreFoundation __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 23 ...</code></pre></figure>
+
+<p><code class="language-plaintext highlighter-rouge">viewWillLayoutSubviews</code> announces the start of layout of the view controller root view. It is called in the same <code class="language-plaintext highlighter-rouge">viewWillAppear</code> stack but this time the commit has taken place (see #6). Successive calls to the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> methods of the <code class="language-plaintext highlighter-rouge">UIViewController</code> views are about to start. <code class="language-plaintext highlighter-rouge">viewDidLayoutSubviews</code> is called just after the execution of the <code class="language-plaintext highlighter-rouge">layoutSubviews</code> of the root view of the view controller.</p>
+
+<h3 id="viewdidappear">viewDidAppear</h3>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#0: Layout PresentedViewController.viewDidAppear(animated=true, self=0x00007fafb6602be0) at ViewController.swift:55 
+#1: Layout @objc PresentedViewController.viewDidAppear(_:) at ViewController.swift:0
+ ...
+ #17: CoreFoundation __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__ + 9 ...</code></pre></figure>
+
+<p><code class="language-plaintext highlighter-rouge">viewDidAppear</code> is called a few seconds later - the time for the presentation animation to finish. It appears in the stack of a block of code sent to the main thread. This block was probably defined using the <code class="language-plaintext highlighter-rouge">setCompletionBlock</code> method at the beginning of the <code class="language-plaintext highlighter-rouge">UIViewController</code> presentation, so <code class="language-plaintext highlighter-rouge">viewDidAppear</code> is called once all the presentation animations are finished.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>In this journey, we discovered the main components of the iOS rendering process: a transaction, a run loop and an observer pattern.</p>
+
+<p>However, we cannot claim to have fully answered the question. We went a bit beyong the intelligible world of the Apple’s documentation but the reality escapes us. From one version of iOS to another, the elements described above may change and many of the statements are actually simple observations.</p>
+
+<p>We also made a few shortcuts. If you try to put the C++ breakpoint given above, you may encounter commits made by <code class="language-plaintext highlighter-rouge">CoreAnimation</code> in blocks other than those triggered by an observer. In particular, if you break too long on a breakpoint, <code class="language-plaintext highlighter-rouge">CoreAnimation</code> seems to trigger a layout phase as soon as the current stack ends.</p>
+
+<p>We have nevertheless managed to break through the layer, represented by UIKit, which hides the heart of an iOS application. The events exposed by UIKit allow us to always execute our code in respect of the infinite loops of the run loop that drives the screen refreshs. We highlighted the application’s life cycle and the importance of scrupulously respecting the UIKit events.</p>
+
+</div>
+
+
+
+<div class="pagination">
+  
+    <a href="/2021-06-22/enhance-xcode-templates-using-git" class="left arrow">&#8592; Previous article</a>
+  
+  
+    <a href="/2021-01-04/uikit-rendering-part-2" class="right arrow">Next article &#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+    </main>
+
+    <footer>
+  <div class="container">
+    <div class="footer-row">
+      <div class="contact-links">
+        <ul>
+          <li><a>gaetan.zanella@fabernovel.com</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <div class="social-links">
+        <ul class="social-media-list"><li><a rel="me" href="https://github.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

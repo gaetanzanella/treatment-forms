@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Enhance Xcode snippets using Git | Gaétan Zanella</title>
+<meta name="generator" content="Jekyll v3.9.0" />
+<meta property="og:title" content="Enhance Xcode snippets using Git" />
+<meta name="author" content="Gaétan Zanella" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In a previous post we described how to combine xcresource and Xcode templates to create a distributed sample code database available right inside Xcode." />
+<meta property="og:description" content="In a previous post we described how to combine xcresource and Xcode templates to create a distributed sample code database available right inside Xcode." />
+<link rel="canonical" href="http://localhost:4000/2021-07-22/enhance-xcode-snippets-using-git" />
+<meta property="og:url" content="http://localhost:4000/2021-07-22/enhance-xcode-snippets-using-git" />
+<meta property="og:site_name" content="Gaétan Zanella" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-07-22T00:00:00+02:00" />
+<script type="application/ld+json">
+{"headline":"Enhance Xcode snippets using Git","url":"http://localhost:4000/2021-07-22/enhance-xcode-snippets-using-git","datePublished":"2021-07-22T00:00:00+02:00","dateModified":"2021-07-22T00:00:00+02:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2021-07-22/enhance-xcode-snippets-using-git"},"author":{"@type":"Person","name":"Gaétan Zanella"},"description":"In a previous post we described how to combine xcresource and Xcode templates to create a distributed sample code database available right inside Xcode.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <!-- Favicon -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+  <link rel="manifest" href="/gaetanzanella.webmanifest">
+  <link rel="mask-icon" href="/favicons/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Gaétan Zanella" />
+
+  <!-- Google Analytics-->
+  
+</head>
+
+
+  <body>
+
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <h2 class="nav-title">Gaétan Zanella</h2>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/apps">Apps</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/archives">Archives</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+      
+        <a href="https://github.com/gaetanzanella">Gaétan Zanella</a>
+      
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-07-22 00:00:00 +0200">July 22, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">Enhance Xcode snippets using Git</h1>
+  <div class="post-line"></div>
+
+  <p>In a previous <a href="https://fabernovel.github.io/2021-06-22/enhance-xcode-templates-using-git">post</a> we described how to combine <a href="https://github.com/faberNovel/xcresource-cli">xcresource</a> and <a href="https://www.hackingwithswift.com/articles/158/how-to-create-a-custom-xcode-template-for-coordinators">Xcode templates</a> to create a distributed sample code database available right inside Xcode.</p>
+
+<p>This time, we will see how to use <a href="https://github.com/faberNovel/xcresource-cli">xcresource</a> to share and back Xcode codesnippets up!</p>
+
+<h2 id="backing-codesnippets-up-in-a-git-repository">Backing codesnippets up in a git repository</h2>
+
+<p><a href="https://sarunw.com/posts/how-to-create-code-snippets-in-xcode/#what-is-code-snippet%3F">Xcode snippets</a> are reusable blocks of code available in Xcode. You can browse them and create your own snippets in the <a href="https://sarunw.com/posts/how-to-create-code-snippets-in-xcode/#code-snippets-library">Xcode snippets library</a>.</p>
+
+<p>Anytime you create a codesnippet, Xcode stores it in a local folder (<code class="language-plaintext highlighter-rouge">~/Library/Developer/Xcode/UserData/CodeSnippets</code>). You can use <code class="language-plaintext highlighter-rouge">xcresource snippet open</code> to browse them.</p>
+
+<figure>
+    <img src="/assets/enhance-xcode-snippets-using-git/local-snippets.png" height="300px" alt="xcresourcecodesnippets storage directory" />
+    <figcaption>Xcode snippets directory</figcaption>
+</figure>
+
+<p>Thanks to <a href="https://github.com/faberNovel/xcresource-cli">xcresource</a>, you can move your snippets to a <a href="https://github.com/faberNovel/CodeSnippet_iOS/tree/master/XCSnippet">git repository</a> to back them up and install them again later locally. It is considered as a good pratice to rename them with explicit names.</p>
+
+<p>Consider deleting your local snippets once copied, before installation, to avoid duplications:</p>
+
+<figure class="highlight"><pre><code class="language-ssh" data-lang="ssh">&gt; xcresource snippet remove
+&gt; xcresource snippet install --url url_to_git_repo --pointer branch_name</code></pre></figure>
+
+<h2 id="installing-snippets-from-different-sources">Installing snippets from different sources</h2>
+
+<p>When installing snippets, you can specify a <code class="language-plaintext highlighter-rouge">namespace</code> parameter:</p>
+
+<figure class="highlight"><pre><code class="language-ssh" data-lang="ssh">&gt; xcresource snippet install --url url_to_git_repo --pointer branch_name --namespace my_namespace</code></pre></figure>
+
+<p>A namespace acts as an installation folder. The snippets will be installed inside it. If the namespace already exists, it is replaced. Thus, you can use namespace to install snippets from different sources:</p>
+
+<figure class="highlight"><pre><code class="language-ssh" data-lang="ssh">&gt; xcresource snippet install --url url_to_my_personal_git_repo --namespace personal_snippets
+
+&gt; xcresource snippet install --url url_to_my_company_git_repo --namespace company_snippets
+
+&gt; xcresource snippet list
+# personal_snippets
+- personal snippet 1
+- personal snippet 2
+# company_snippets
+- company snippet 1
+- company snippet 2</code></pre></figure>
+
+<h2 id="a-word-on-the-snippet-namespace-implementation">A word on the snippet namespace implementation</h2>
+
+<p>When installing snippets, <code class="language-plaintext highlighter-rouge">xcresource</code> stores the namespace you specified in the summary of your snippets:</p>
+
+<figure>
+    <img src="/assets/enhance-xcode-snippets-using-git/namespace.png" height="300px" alt="The snippet namespace is stored in its summary" />
+    <figcaption>The snippet namespace is stored in its summary</figcaption>
+</figure>
+
+<p>Be careful to not override it when editing your snippets using Xcode.</p>
+
+<h2 id="whats-next">What’s next?</h2>
+
+<p>Try to create your own Xcode snippets repository and display them in Xcode of course!</p>
+
+<p>Discover how you can use <a href="https://github.com/faberNovel/xcresource-cli">xcresource</a> to <a href="https://fabernovel.github.io/2021-06-22/enhance-xcode-templates-using-git">enhance your Xcode templates</a> ;)</p>
+
+</div>
+
+
+
+<div class="pagination">
+  
+    <a href="/2021-09-13/swift-argument-parser-a-swift-mod" class="left arrow">&#8592; Previous article</a>
+  
+  
+    <a href="/2021-06-22/enhance-xcode-templates-using-git" class="right arrow">Next article &#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+    </main>
+
+    <footer>
+  <div class="container">
+    <div class="footer-row">
+      <div class="contact-links">
+        <ul>
+          <li><a>gaetan.zanella@fabernovel.com</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <div class="social-links">
+        <ul class="social-media-list"><li><a rel="me" href="https://github.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/gaetanzanella" title="gaetanzanella"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

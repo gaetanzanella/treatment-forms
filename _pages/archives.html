@@ -1,0 +1,32 @@
+---
+layout: default
+title: "Archives"
+permalink: /archives/
+---
+
+<div class="tags">
+  <div class="tags-header">
+    <h2 class="tags-header-title">{{ page.title }}</h2>
+    <div class="tags-header-line"></div>
+  </div>
+
+  {% assign postsByYear = site.posts | group_by_exp:"post", "post.date | date: '%Y'"  %}
+  {% for year in postsByYear %}
+    <div class="tags-item" id="{{ tag[0] }}">
+      <h2 class="tags-item-label">{{ year.name }}</h2>
+      {% for post in year.items %}
+        <a class="tags-post" href="{{ post.url | prepend: site.baseurl }}">
+          <div>
+            <span class="tags-post-title">{{ post.title }}</span>
+            <div class="tags-post-line"></div>
+          </div>
+          <span class="tags-post-meta">
+            <time datetime="{{ post.date }}">
+              {{ post.date | date:"%Y-%m-%d" }}
+            </time>
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
