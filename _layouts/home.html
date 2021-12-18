@@ -3,18 +3,14 @@ layout: default
 ---
 
 <div class="catalogue">
-  {% for post in paginator.posts %}
-    <a href="{{ post.url | prepend: site.baseurl }}" class="catalogue-item">
+  {% for form in site.treatment_forms %}
+    <a href="{{ form.url | prepend: site.baseurl }}" class="catalogue-item">
       <div>
-        <time datetime="{{ post.date }}" class="catalogue-time">{{ post.date | date: "%B %d, %Y" }}</time>
-        <h1 class="catalogue-title">{{ post.title }}</h1>
+        <time class="catalogue-time">{{ form.category }}</p>
+        <h1 class="catalogue-title">{{ form.title }}</h1>
         <div class="catalogue-line"></div>
-
-        <p>
-          {{ post.content | strip_html | truncatewords: 30 }}
-        </p>
-
       </div>
+      <p> {{ form.description }} </p>
     </a>
   {% endfor %}
 </div>

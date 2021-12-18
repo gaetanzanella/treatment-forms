@@ -18,16 +18,17 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: Gaétan Zanella
+title: Docteur Rineau
 # description: Explore the Fabernovel tech team’s latest musings on mobile development, front end, back end, modern architecture, Cloud, APIs and so much more.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://gaetanzanella.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 
 # Author
 author:
-  name: Gaétan Zanella
-  url: "https://twitter.com/gaetanzanella"
-  email: "gaetan.zanella@fabernovel.com"
+  name: Docteur Rineau
+  mobile: "06 90 29 29 01"
+  landline: "01 10 29 29 01"
+  email: "emmanuel.rineau@chu.angers.com"
 
 # google_analytics: UA-455808-64
 
@@ -38,8 +39,7 @@ include:
 
 # Social
 social_links:
-  github: gaetanzanella
-  twitter: gaetanzanella
+  twitter: emmanuelrineau
 
 # Assets
 sass:
@@ -57,7 +57,9 @@ permalink: /:year-:month-:day/:title
 paginate: 10
 
 collections:
-  - apps
+  treatment_forms:
+    output: true
+    permalink: /:collection/:name
 
 # Excludes
 exclude:

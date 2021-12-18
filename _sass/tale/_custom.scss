@@ -203,7 +203,7 @@ footer .fabernovel-logo {
 
 .contact-links {
   li {
-    display: inline;
+    display: inline-block;
     margin-right: 20px;
     &:last-of-type { margin-right: 0 }
   }
