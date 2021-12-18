@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="70px" height="70px" viewBox="0 0 70 70" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- Generator: Sketch 54.1 (76490) - https://sketchapp.com -->
-    <title>FaceTrackerDisableCompactIcon</title>
+    <title>Rectanglesafari-pinned-tab</title>
     <desc>Created with Sketch.</desc>
-    <g id="App" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" font-family="SFCompactDisplay-Regular, SF Compact Display" font-size="23" font-weight="normal">
-        <g id="Artboard" transform="translate(-287.000000, -39.000000)" fill="#007AFF">
-            <g id="FaceTrackerCompactIcon-Copy-2" transform="translate(290.000000, 41.000000)">
-                <text id="􀎽">
-                    <tspan x="0" y="22.5">􀎽</tspan>
-                </text>
-            </g>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Artboard" transform="translate(-134.000000, -148.000000)">
+            <rect id="Rectangle" x="134" y="148" width="70" height="70"></rect>
+            <text id="👨🏻‍⚕️" font-family="AppleColorEmoji, Apple Color Emoji" font-size="50" font-weight="normal" letter-spacing="11.3333435" fill="#FFFFFF">
+                <tspan x="142.333328" y="200">👨🏻‍⚕️</tspan>
+            </text>
         </g>
     </g>
 </svg>
